@@ -29,14 +29,18 @@ def teardown_request(exception):
 #============================
 @app.route('/')
 def show_zones():
-    #cur = g.db.execute('select title, text from entries order by id desc')
-    #entries = [dict(title=row[0], text=row[1]) for row in cur.fetchall()]
-    return render_template('show_zones.html', entries=[{}])
+    zones = g.db.query(Zone).filter(Zone.user_id == session['user_id']).all()
+    return render_template('show_zones.html', entries=zones)
 
 #============================
-@app.route('/add_entry')
+@app.route('/add_entry', methods=['POST'])
 def add_entry():
-    pass
+    zone = Zone(name=request.form['title'], description=request.form['text'])
+    zone.user_id = session['user_id']
+    g.db.add(zone)
+    g.db.commit()
+    return redirect(url_for('show_zones'))
+
     
 #============================
 @app.route('/login', methods=['GET', 'POST'])
@@ -49,7 +53,7 @@ def login():
             if password.upper() == user.password.upper():
                 session['username'] = user.name
                 session['logged_in'] = True
-                #session['user'] = jsonify(user)
+                session['user_id'] = user.id
                 flash('Welcome %s' % user.name)
                 return redirect(url_for('show_zones'))
         else:
