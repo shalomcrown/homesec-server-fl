@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String, MetaData, Sequence,  ForeignKey
-from sqlalchemy.orm import sessionmaker,  backref,  relationship
+from sqlalchemy import Column, Integer, String, MetaData, Sequence, ForeignKey
+from sqlalchemy.orm import sessionmaker, backref, relationship
 from enum import Enum
 import hashlib
 import logging
@@ -18,6 +18,7 @@ UserState = Enum('UNVERIFIED', "ACTIVE", "DISABLED")
 ses = None
 eng = None
 
+
 #============================
 class User(Base):
     __tablename__ = 'USERS'
@@ -30,24 +31,25 @@ class User(Base):
 
     @property
     def serialize(self):
-       """Return object data in easily serializeable format"""
-       return {
-           'id'         : self.id,
-           'name'     : self.name, 
-           'email'    : self.email, 
-           'state'  : self.state, 
+        """Return object data in easily serializeable format"""
+        return {
+           'id': self.id,
+           'name': self.name,
+           'email': self.email,
+           'state': self.state,
            #'modified_at': dump_datetime(self.modified_at),
            # This is an example how to deal with Many2Many relations
-           'zones'  : self.serialize_zones
-       }
-       
+           'zones': self.serialize_zones
+           }
+
     @property
     def serialize_zones(self):
-       """
-       Return object's relations in easily serializeable format.
-       NB! Calls many2many's serialize property.
-       """
-       return [ item.serialize for item in self.zones]
+        """
+        Return object's relations in easily serializeable format.
+        NB! Calls many2many's serialize property.
+        """
+        return [item.serialize for item in self.zones]
+
 
 #================================================
 class Zone(Base):
@@ -57,22 +59,23 @@ class Zone(Base):
     description = Column(String(4096))
     user_id = Column(Integer, ForeignKey('USERS.id'))
     user = relationship("User", backref=backref('zones', order_by=id))
-    
+
     @property
     def serialize(self):
-       """Return object data in easily serializeable format"""
-       return {
-           'id'         : self.id,
-           'name'     : self.name, 
-           'description'    : self.description, 
-       }
-           
+        """Return object data in easily serializeable format"""
+        return {
+           'id': self.id,
+           'name': self.name,
+           'description': self.description,
+        }
+
 
 #================================================
 def passwordFromString(stringPassword):
     m = hashlib.md5()
     m.update(stringPassword)
     return m.hexdigest()
+
 
 #================================================
 def dump_datetime(value):

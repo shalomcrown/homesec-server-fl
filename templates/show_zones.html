@@ -2,15 +2,26 @@
 {% block body %}
 <h1>Zones</h1>
   <ul class=entries>
-  {% for entry in entries %}
-    <li><h2>{{ entry.name }}</h2>{{ entry.description|safe }}
+  {% if entries %}
+      <table class="nice_table"><tr><th>Name</th><th>Description</th>
+      <td></td></tr>
+      {% for entry in entries %}
+        <tr><td>{{ entry.name }}</td><td>{{ entry.description|safe }}</td>
+        <td class=centered>
+            <form action="{{ url_for('delete_zone') }}" method=post>
+            <input type=hidden name=entry_id value={{ entry.id }} />
+            <input type=image src="{{ url_for('static', filename='1449354740_cross-24.png') }}" height=16 width=16 alt=submit />
+            </form>
+        </td></tr>m
+      {% endfor %}
+      </table>
   {% else %}
     <li><em>No zones defined</em>
-  {% endfor %}
+  {% endif %}
   </ul>
 
   {% if session.logged_in %}
-    <form action="{{ url_for('add_entry') }}" method=post class=add-entry>
+    <form action="{{ url_for('add_zone') }}" method=post class=add-entry>
       <dl>
         <dt>Title:
         <dd><input type=text size=30 name=title>

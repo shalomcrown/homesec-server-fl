@@ -16,3 +16,5 @@ margin-bottom: 1em; background: #fafafa; }
 .flash          { background: #cee5F5; padding: 0.5em;
 border: 1px solid #aacbe2; }
 .error          { background: #f0d6d6; padding: 0.5em; }
+.centered { vertical-align:middle; text-align:center; }
+.centered img { display:block; margin:0 auto; }
