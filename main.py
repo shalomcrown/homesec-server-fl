@@ -93,7 +93,9 @@ def logout():
 def user_required(f):
     """Checks whether user is logged in or raises error 401."""
     def decorator(*args, **kwargs):
+        app.logger.debug('user_required')
         if 'user_id' in session:
+            app.logger.debug('User %d in session' % session['user_id'])
             return f(*args, **kwargs)
         else:
             if request.authorization:
@@ -102,12 +104,15 @@ def user_required(f):
                     .filter(User.name.like(request.form['username'])) \
                     .one()
                 if user:
+                    app.logger.debug('Login for user %s' % user)
                     password = passwordFromString(auth.password)
                     if password.upper() == user.password.upper():
                         session['username'] = user.name
                         session['logged_in'] = True
                         session['user_id'] = user.id
+                        app.logger.debug('User %s authenticated' % user)
                         return f(*args, **kwargs)
+        app.logger.debug('Return 401')
         return Response(
             'Could not verify your access level for that URL.\n'
             'You have to login with proper credentials', 401,
@@ -119,9 +124,6 @@ def user_required(f):
 class ZoneApi (MethodView):
 
     decorators = [user_required]
-
-    def __init__(self):
-        super(ZoneApi, self).__init__()
 
     def get(self):
         zones = g.db.query(Zone)\
@@ -139,7 +141,7 @@ if __name__ == "__main__":
     logger.addHandler(sh)
     schema_create()
 
-    app.add_url_rule('/api/zones/', endpoint='/api/zones/',
-        view_func=ZoneApi.as_view('/api/zones'),
+    app.add_url_rule('/api/zones/', endpoint='api_zones',
+        view_func=ZoneApi.as_view('api_zones'),
         methods=['GET', 'POST', 'PUT', 'DELETE'])
     app.run(host="0.0.0.0", debug=True)
