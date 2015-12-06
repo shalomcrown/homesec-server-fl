@@ -100,11 +100,13 @@ def user_required(f):
         else:
             if request.authorization:
                 auth = request.authorization
+                app.logger.debug('Login auth %s'
+                                            % request.authorization.username)
                 user = g.db.query(User) \
-                    .filter(User.name.like(request.form['username'])) \
+                    .filter(User.name.like(auth.username)) \
                     .one()
                 if user:
-                    app.logger.debug('Login for user %s' % user)
+                    app.logger.debug('Login for user %s' % user.name)
                     password = passwordFromString(auth.password)
                     if password.upper() == user.password.upper():
                         session['username'] = user.name
