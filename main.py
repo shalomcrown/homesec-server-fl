@@ -8,6 +8,7 @@ import os
 import logging
 import  logging.handlers
 from db_schema import *
+import json
 
 
 #============================
@@ -131,7 +132,7 @@ class ZoneApi (MethodView):
         zones = g.db.query(Zone)\
             .filter(Zone.user_id == session['user_id'])\
             .all()
-        return jsonify(zones)
+        return json.dumps([ a.serialize() for a in zones])
 
 #============================
 if __name__ == "__main__":
@@ -139,9 +140,9 @@ if __name__ == "__main__":
     logger.propagate = False
     sh = logging.StreamHandler()
     sh.setLevel(logging.DEBUG)
-    #sh.setFormatter(ColoredFormatter())
     logger.addHandler(sh)
     schema_create()
+
 
     app.add_url_rule('/api/zones/', endpoint='api_zones',
         view_func=ZoneApi.as_view('api_zones'),

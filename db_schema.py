@@ -3,6 +3,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String, MetaData, Sequence, ForeignKey
+from sqlalchemy import BigInteger, DateTime
 from sqlalchemy.orm import sessionmaker, backref, relationship
 from enum import Enum
 import hashlib
@@ -22,18 +23,19 @@ eng = None
 #============================
 class User(Base):
     __tablename__ = 'USERS'
-    id = Column(Integer, Sequence('user_id_seq'), primary_key=True)
+    id = Column('id', Integer, Sequence('user_id_seq'), primary_key=True)
     name = Column(String(50))
     email = Column(String(50))
     state = Column(Integer)
     password = Column(String(50))
-    #zones = relationship("Zone", order_by="ZONES.id", backref="user")
+    zones = relationship("Zone", backref="user")
+    created = Column(DateTime(timezone=True))
 
     @property
     def serialize(self):
         """Return object data in easily serializeable format"""
         return {
-           'id': self.id,
+           'id': self.user_id,
            'name': self.name,
            'email': self.email,
            'state': self.state,
@@ -54,20 +56,56 @@ class User(Base):
 #================================================
 class Zone(Base):
     __tablename__ = 'ZONES'
-    id = Column(Integer, Sequence('zone_id_seq'), primary_key=True)
+    id = Column('id', Integer, Sequence('zone_id_seq'), primary_key=True)
     name = Column(String(128))
     description = Column(String(4096))
     user_id = Column(Integer, ForeignKey('USERS.id'))
-    user = relationship("User", backref=backref('zones', order_by=id))
+    #user = relationship("User", backref=backref('zones', order_by=id))
+    cameras = relationship("Camera", backref='zone')
+    created = Column(DateTime(timezone=True))
+    
 
-    @property
     def serialize(self):
         """Return object data in easily serializeable format"""
         return {
            'id': self.id,
            'name': self.name,
-           'description': self.description,
+           'description': self.description
         }
+
+
+#================================================
+class Camera(Base):
+    __tablename__ = 'CAMERAS'
+    id = Column('id', Integer, Sequence('camera_id_seq'), primary_key=True)
+    name = Column(String(128))
+    description = Column(String(4096))
+    os_id = Column(Integer, default=0)
+    zone_id = Column(Integer, ForeignKey('ZONES.id'))
+    images = relationship("Image", backref='camera')
+    created = Column(DateTime(timezone=True))
+
+
+#================================================
+class Image(Base):
+    __tablename__ = 'IMAGES'
+    id = Column('id', BigInteger, Sequence('image_id_seq'), primary_key=True)
+    camera_id = Column(Integer, ForeignKey('CAMERAS.id'))
+    timestamp = Column(DateTime(timezone=True))
+    filename = Column(String(50))
+    x_res = Column(Integer)
+    y_res = Column(Integer)
+    fmt = Column(String(20))
+
+
+#================================================
+class Settings(Base):
+    __tablename__ = 'SETTINGS'
+    id = Column('id', Integer, Sequence('settings_id_seq'), primary_key=True)
+    name = Column(String(100))
+    description = Column(String(250))
+    value = Column(String(4096))
+    last_updated = Column(DateTime(timezone=True))
 
 
 #================================================

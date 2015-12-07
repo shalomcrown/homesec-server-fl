@@ -12,7 +12,7 @@
             <input type=hidden name=entry_id value={{ entry.id }} />
             <input type=image src="{{ url_for('static', filename='1449354740_cross-24.png') }}" height=16 width=16 alt=submit />
             </form>
-        </td></tr>m
+        </td></tr>
       {% endfor %}
       </table>
   {% else %}
@@ -21,6 +21,7 @@
   </ul>
 
   {% if session.logged_in %}
+    <h2>Add a new zone</h2>
     <form action="{{ url_for('add_zone') }}" method=post class=add-entry>
       <dl>
         <dt>Title:
