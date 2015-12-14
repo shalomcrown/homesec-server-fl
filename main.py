@@ -9,13 +9,17 @@ import logging
 import  logging.handlers
 from db_schema import *
 import json
+import argparse
 
 
 #============================
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
-logger = logging.getLogger(__name__)
-
+logger = app.logger
+is_server = False
+server_url = None
+FORMAT = '%(asctime)s %(levelname)s %(filename)s %(line)s  %(message)s'
+logging.basicConfig(format=FORMAT)
 
 #============================
 @app.before_request
@@ -78,7 +82,7 @@ def login():
             flash('Unknown user or bad password')
     if 'username' in session:
         return 'Logged in as %s' % escape(session['username'])
-    return render_template('login.html', error=error)
+    return render_template('login.html', context={"is_server" : is_server, 'error' : error})
 
 
 #============================
@@ -135,6 +139,11 @@ class ZoneApi (MethodView):
         return json.dumps([ a.serialize() for a in zones])
 
 #============================
+def loadSettings():
+     s = get_session()
+     server_url = s.query(Settings).filter(Settings.name == 'server_url')
+
+#============================
 if __name__ == "__main__":
     logger.setLevel(logging.DEBUG)
     logger.propagate = False
@@ -143,8 +152,17 @@ if __name__ == "__main__":
     logger.addHandler(sh)
     schema_create()
 
+    parser = argparse.ArgumentParser("Homesec server / client")
+    parser.add_argument('-s', '--server', action='store_true')
+    args = parser.parse_args()
+    is_server = args.server
 
-    app.add_url_rule('/api/zones/', endpoint='api_zones',
-        view_func=ZoneApi.as_view('api_zones'),
-        methods=['GET', 'POST', 'PUT', 'DELETE'])
-    app.run(host="0.0.0.0", debug=True)
+    loadSettings()
+
+    if is_server:
+        app.add_url_rule('/api/zones/', endpoint='api_zones',
+            view_func=ZoneApi.as_view('api_zones'),
+            methods=['GET', 'POST', 'PUT', 'DELETE'])
+
+    app.run(host="0.0.0.0", debug=True,
+            port = 5050 if is_server else 8080)

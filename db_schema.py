@@ -9,6 +9,7 @@ from enum import Enum
 import hashlib
 import logging
 import logging.handlers
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +64,7 @@ class Zone(Base):
     #user = relationship("User", backref=backref('zones', order_by=id))
     cameras = relationship("Camera", backref='zone')
     created = Column(DateTime(timezone=True))
-    
+
 
     def serialize(self):
         """Return object data in easily serializeable format"""
@@ -128,6 +129,7 @@ def get_session():
     global ses
     global eng
     if not ses:
+        logger.debug('We are at %s' % os.getcwd())
         eng = create_engine('sqlite:///../homesec.db', echo=True)
         Base.metadata.bind = eng
         Session = sessionmaker(bind=eng)
@@ -145,5 +147,8 @@ def schema_create():
         logger.debug("Creating default user")
         ses.add(User(name='pi', password=passwordFromString('123456')))
         ses.commit()
+
+    if not ses.query(Settings).count():
+        Settings(name = 'server_url', value='http://localhost:5050')
 
 
