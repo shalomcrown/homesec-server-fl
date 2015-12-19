@@ -18,7 +18,7 @@ app.secret_key = os.urandom(24)
 logger = app.logger
 is_server = False
 server_url = None
-FORMAT = '%(asctime)s %(levelname)s %(filename)s %(line)s  %(message)s'
+FORMAT = '%(asctime)s %(levelname)s %(filename)s %(lineno)s  %(message)s'
 logging.basicConfig(format=FORMAT)
 
 #============================
@@ -63,13 +63,19 @@ def delete_zone():
 
 
 #============================
+def remote_login(url, username, password, updateLocalDb = True):
+    return None
+
+#============================
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     error = None
     if request.method == 'POST':
-        user = g.db.query(User) \
-            .filter(User.name.like(request.form['username'])) \
-            .one()
+        query = g.db.query(User).filter(User.name.like(request.form['username']))
+        user = query.first()
+        if not user and not is_server and request.form['server_url']:
+            user = remote_login(request.form['server_url'], request.form['username'], request.form['password'])
+
         if user:
             password = passwordFromString(request.form['password'])
             if password.upper() == user.password.upper():
@@ -107,9 +113,8 @@ def user_required(f):
                 auth = request.authorization
                 app.logger.debug('Login auth %s'
                                             % request.authorization.username)
-                user = g.db.query(User) \
-                    .filter(User.name.like(auth.username)) \
-                    .one()
+                query = g.db.query(User).filter(User.name.like(auth.username))
+                user = query.first()
                 if user:
                     app.logger.debug('Login for user %s' % user.name)
                     password = passwordFromString(auth.password)
@@ -129,7 +134,6 @@ def user_required(f):
 
 #============================
 class ZoneApi (MethodView):
-
     decorators = [user_required]
 
     def get(self):

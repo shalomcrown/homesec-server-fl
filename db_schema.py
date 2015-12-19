@@ -25,7 +25,7 @@ eng = None
 class User(Base):
     __tablename__ = 'USERS'
     id = Column('id', Integer, Sequence('user_id_seq'), primary_key=True)
-    name = Column(String(50))
+    name = Column(String(50), unique=True)
     email = Column(String(50))
     state = Column(Integer)
     password = Column(String(50))
