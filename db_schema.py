@@ -11,7 +11,7 @@ import logging
 import logging.handlers
 import os
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('homesec')
 
 Base = declarative_base()
 
@@ -150,5 +150,6 @@ def schema_create():
 
     if not ses.query(Settings).count():
         Settings(name = 'server_url', value='http://localhost:5050')
+        ses.commit()
 
 

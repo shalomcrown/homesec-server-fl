@@ -11,15 +11,18 @@ from db_schema import *
 import json
 import argparse
 
+import homesec_images
 
 #============================
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
-logger = app.logger
+logger = logging.getLogger('homesec')
+#app.logger = logger
 is_server = False
 server_url = None
 FORMAT = '%(asctime)s %(levelname)s %(filename)s %(lineno)s  %(message)s'
 logging.basicConfig(format=FORMAT)
+
 
 #============================
 @app.before_request
@@ -152,8 +155,10 @@ if __name__ == "__main__":
     logger.setLevel(logging.DEBUG)
     logger.propagate = False
     sh = logging.StreamHandler()
+    sh.setFormatter(logging.Formatter(FORMAT))
     sh.setLevel(logging.DEBUG)
     logger.addHandler(sh)
+    logger.debug('Starting up')
     schema_create()
 
     parser = argparse.ArgumentParser("Homesec server / client")
@@ -167,6 +172,9 @@ if __name__ == "__main__":
         app.add_url_rule('/api/zones/', endpoint='api_zones',
             view_func=ZoneApi.as_view('api_zones'),
             methods=['GET', 'POST', 'PUT', 'DELETE'])
+
+    else:
+        homesec_images.start_images()
 
     app.run(host="0.0.0.0", debug=True,
             port = 5050 if is_server else 8080)
