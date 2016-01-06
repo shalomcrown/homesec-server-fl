@@ -11,7 +11,7 @@ import logging
 import logging.handlers
 import os
 
-logger = logging.getLogger('homesec')
+logger = logging.getLogger(__name__)
 
 Base = declarative_base()
 
@@ -40,7 +40,7 @@ class User(Base):
            'name': self.name,
            'email': self.email,
            'state': self.state,
-           #'modified_at': dump_datetime(self.modified_at),
+           # 'modified_at': dump_datetime(self.modified_at),
            # This is an example how to deal with Many2Many relations
            'zones': self.serialize_zones
            }
@@ -61,7 +61,7 @@ class Zone(Base):
     name = Column(String(128))
     description = Column(String(4096))
     user_id = Column(Integer, ForeignKey('USERS.id'))
-    #user = relationship("User", backref=backref('zones', order_by=id))
+    # user = relationship("User", backref=backref('zones', order_by=id))
     cameras = relationship("Camera", backref='zone')
     created = Column(DateTime(timezone=True))
 
@@ -149,7 +149,10 @@ def schema_create():
         ses.commit()
 
     if not ses.query(Settings).count():
-        Settings(name = 'server_url', value='http://localhost:5050')
+        Settings(name='server_url', value='http://localhost:5050')
         ses.commit()
 
-
+#===========================================================
+def setDalLogger(lg):
+    global logger
+    logger = lg

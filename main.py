@@ -12,17 +12,16 @@ import json
 import argparse
 
 import homesec_images
+import werkzeug.serving
+
+
+logger = logging.getLogger(__name__)
 
 #============================
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
-logger = logging.getLogger('homesec')
-#app.logger = logger
 is_server = False
 server_url = None
-FORMAT = '%(asctime)s %(levelname)s %(filename)s %(lineno)s  %(message)s'
-logging.basicConfig(format=FORMAT)
-
 
 #============================
 @app.before_request
@@ -66,7 +65,7 @@ def delete_zone():
 
 
 #============================
-def remote_login(url, username, password, updateLocalDb = True):
+def remote_login(url, username, password, updateLocalDb=True):
     return None
 
 #============================
@@ -147,18 +146,28 @@ class ZoneApi (MethodView):
 
 #============================
 def loadSettings():
-     s = get_session()
-     server_url = s.query(Settings).filter(Settings.name == 'server_url')
+    s = get_session()
+    server_url = s.query(Settings).filter(Settings.name == 'server_url')
 
-#============================
-if __name__ == "__main__":
-    logger.setLevel(logging.DEBUG)
-    logger.propagate = False
+#===========================================================
+def setupLogger():
+    FORMAT = '%(asctime)s %(levelname)s %(filename)s %(lineno)s  %(message)s'
+    # logging.basicConfig(format=FORMAT)
+
     sh = logging.StreamHandler()
     sh.setFormatter(logging.Formatter(FORMAT))
     sh.setLevel(logging.DEBUG)
-    logger.addHandler(sh)
-    logger.debug('Starting up')
+
+    for lg in [app.logger, logger, logging.getLogger('db_schema'), logging.getLogger('homesec_images')]:
+        lg.propagate = True
+        lg.addHandler(sh)
+        lg.setLevel(logging.DEBUG)
+        lg.debug('Starting up - logger:%s', lg.name)
+
+
+#============================
+if __name__ == "__main__":
+    setupLogger()
     schema_create()
 
     parser = argparse.ArgumentParser("Homesec server / client")
@@ -173,8 +182,8 @@ if __name__ == "__main__":
             view_func=ZoneApi.as_view('api_zones'),
             methods=['GET', 'POST', 'PUT', 'DELETE'])
 
-    else:
+    elif not werkzeug.serving.is_running_from_reloader():
         homesec_images.start_images()
 
     app.run(host="0.0.0.0", debug=True,
-            port = 5050 if is_server else 8080)
+            port=5050 if is_server else 8080)
