@@ -15,6 +15,7 @@ import homesec_images
 import werkzeug.serving
 
 
+
 logger = logging.getLogger(__name__)
 
 #============================
@@ -22,6 +23,7 @@ app = Flask(__name__)
 app.secret_key = os.urandom(24)
 is_server = False
 server_url = None
+image_dir = None
 
 #============================
 @app.before_request
@@ -144,10 +146,29 @@ class ZoneApi (MethodView):
             .all()
         return json.dumps([ a.serialize() for a in zones])
 
+
+#===========================================================
+def loadSetting(setting, default):
+    s = get_session()
+    result = s.query(Settings).filter(Settings.name == setting).first()
+
+    if not result:
+        logger.debug('Setting: %s was not set, insert default: %s', setting, default)
+        s.add(Settings(name=setting, value=default))
+        s.commit()
+        return default
+
+    foundvalue = result.value
+    logger.debug('Setting: %s, value: %s', setting, foundvalue)
+    return foundvalue
+
+
 #============================
 def loadSettings():
-    s = get_session()
-    server_url = s.query(Settings).filter(Settings.name == 'server_url')
+    global image_dir
+    global server_url
+    server_url = loadSetting('server_url', 'http://localhost:5050')
+    image_dir = loadSetting('image_dir', '/tmp/homesec')
 
 #===========================================================
 def setupLogger():
@@ -183,7 +204,7 @@ if __name__ == "__main__":
             methods=['GET', 'POST', 'PUT', 'DELETE'])
 
     elif not werkzeug.serving.is_running_from_reloader():
-        homesec_images.start_images()
+        homesec_images.start_images(get_session(), server_url, image_dir)
 
     app.run(host="0.0.0.0", debug=True,
             port=5050 if is_server else 8080)

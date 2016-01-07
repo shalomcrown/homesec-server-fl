@@ -10,7 +10,9 @@ import threading
 from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 import atexit
+import datetime
 
+import db_schema
 
 try:
     import numpy as np
@@ -26,7 +28,7 @@ except:
     """
     exit(-1)
 
-
+imageCount = 0
 
 logger = logging.getLogger(__name__)
 
@@ -87,9 +89,11 @@ def diffCoeff(im1, im2):
 
 #=======================================
 
-def doNextImage(previousImage, camera, loginDetails):
+def doNextImage(previousImage, camera, loginDetails, dbSession=None, image_dir='/tmp/homesec'):
     logger.info("Next image")
+    taken_at = datetime.datetime.utcnow()
     nextImage = takePictureIntoImage(camera)
+    global imageCount
 
     if previousImage is not None:
         logger.info("Have previous file");
@@ -98,14 +102,18 @@ def doNextImage(previousImage, camera, loginDetails):
         diff = diffCoeff(previousImage, nextImage)
         logger.info("Diff is: %f", diff)
 
-        if diff < 0.99:
-            pass
+        if diff < 0.95:
+            fileName = taken_at.strftime('image-%Y-%m-%d_%H:%M:%S.%f_') + str(imageCount) + '.jpg'
+            fileName = os.path.join(image_dir, fileName)
+            imageCount = imageCount + 1
+            logger.debug('Writing file to: %s', fileName)
+            cv2.imwrite(fileName, nextImage)
 
     return nextImage
 
 
 #=======================================
-def imageCycle(cycleTime, server_url=None):
+def imageCycle(cycleTime, server_url=None, dbSession=None, image_dir='/tmp/homesec'):
     previousImage = None
     cam = cv2.VideoCapture(0)
     cam.set(cv.CV_CAP_PROP_FRAME_WIDTH, 640)
@@ -123,7 +131,7 @@ def imageCycle(cycleTime, server_url=None):
 
     while True:
         logger.debug('Next image')
-        previousImage = doNextImage(previousImage, cam, server_url)
+        previousImage = doNextImage(previousImage, cam, server_url, dbSession=dbSession, image_dir=image_dir)
         # cv2.imshow('Homesec image', previousImage);
         # cv2.waitKey(500)
         logger.debug('Sleep until next image')
@@ -136,11 +144,15 @@ def images_cleanup():
     cameraThread.cancel()
 
 #=======================================
-def start_images(server_url=None):
+def start_images(dbSession, server_url=None, image_dir='/tmp/homesec'):
     global cameraThread
     logger.debug('Start image thread')
-    cameraThread = threading.Thread(target=imageCycle, args=(0.5, server_url))
+    cameraThread = threading.Thread(target=imageCycle, args=(0.5, server_url, dbSession, image_dir))
     atexit.register(images_cleanup)
+
+    if not os.path.exists(image_dir):
+        os.makedirs(image_dir)
+
     cameraThread.start()
 
 #=======================================
