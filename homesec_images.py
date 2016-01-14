@@ -133,8 +133,9 @@ class HomesecImage:
         while True:
             logger.debug('Next image')
             previousImage = self.doNextImage(previousImage, self.cam, server_url, dbSession=dbSession, image_dir=image_dir)
-            cv2.accumulateWeighted(previousImage, self.averageImage, 0.1)
-            logger.debug('Sleep until next image')
+            imageForAverage = np.float32(previousImage) / 255.0
+            cv2.accumulateWeighted(imageForAverage, self.averageImage, 0.1)
+            logger.debug('Sleep until next image, an average pixel was %s', self.averageImage[240, 320])
             time.sleep(cycleTime)
 
     #===========================================================
