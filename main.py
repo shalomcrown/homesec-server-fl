@@ -172,7 +172,7 @@ def loadSettings():
 
 #===========================================================
 def setupLogger():
-    FORMAT = '%(asctime)s %(levelname)s %(filename)s %(lineno)s  %(message)s'
+    FORMAT = '%(asctime)s %(levelname)s %(filename)s %(lineno)s %(funcName)s %(message)s'
     # logging.basicConfig(format=FORMAT)
 
     sh = logging.StreamHandler()
@@ -188,8 +188,9 @@ def setupLogger():
 
 #============================
 if __name__ == "__main__":
-    setupLogger()
-    schema_create()
+    if not werkzeug.serving.is_running_from_reloader():
+        setupLogger()
+        schema_create()
 
     parser = argparse.ArgumentParser("Homesec server / client")
     parser.add_argument('-s', '--server', action='store_true')
@@ -204,7 +205,7 @@ if __name__ == "__main__":
             methods=['GET', 'POST', 'PUT', 'DELETE'])
 
     elif not werkzeug.serving.is_running_from_reloader():
-        homesec_images.start_images(get_session(), server_url, image_dir)
+        homesec_images.HomesecImage().start_images(get_session(), server_url, image_dir)
 
     app.run(host="0.0.0.0", debug=True,
             port=5050 if is_server else 8080)
