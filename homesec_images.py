@@ -48,8 +48,7 @@ class HomesecImage:
 
     def takePictureIntoImage(self, camera):
         retval, im = camera.read()
-        #logger.debug('Image shape %s', im.shape)
-        #print('Image shape %s' % im.shape)
+        logger.debug('Image shape %s %s', im.shape, im.dtype)
         return im
 
 
@@ -95,7 +94,6 @@ class HomesecImage:
         taken_at = datetime.datetime.utcnow()
         self.nextImage = self.takePictureIntoImage(camera)
         self.newImageEvent.set()
-        global imageCount
 
         if previousImage is not None:
             logger.info("Have previous file");
@@ -105,9 +103,9 @@ class HomesecImage:
             logger.info("Diff is: %f", diff)
 
             if diff < 0.95:
-                fileName = taken_at.strftime('image-%Y-%m-%d_%H:%M:%S.%f_') + str(imageCount) + '.jpg'
+                fileName = taken_at.strftime('image-%Y-%m-%d_%H:%M:%S.%f_') + str(self.imageCount) + '.jpg'
                 fileName = os.path.join(image_dir, fileName)
-                imageCount = imageCount + 1
+                self.imageCount = self.imageCount + 1
                 logger.debug('Writing file to: %s', fileName)
                 cv2.imwrite(fileName, self.nextImage)
 
@@ -119,22 +117,23 @@ class HomesecImage:
         logger.setLevel(logging.DEBUG)
         logger.info("Starting up")
         previousImage = None
-        #averageImage = cv2.
-        cam = cv2.VideoCapture(0)
-        cam.set(cv.CV_CAP_PROP_FRAME_WIDTH, 640)
-        cam.set(cv.CV_CAP_PROP_FRAME_HEIGHT, 480)
+        self.averageImage = np.zeros((480,640,3), np.float32)
+        self.cam = cv2.VideoCapture(0)
+        self.cam.set(cv.CV_CAP_PROP_FRAME_WIDTH, 640)
+        self.cam.set(cv.CV_CAP_PROP_FRAME_HEIGHT, 480)
 
        # warm camera up
         logger.debug('Camera warm up')
         for i in range(10, 0, -1):
             logger.info('Warming up: %d', i)
             time.sleep(cycleTime)
-            self.takePictureIntoImage(cam)
+            self.takePictureIntoImage(self.cam)
 
 
         while True:
             logger.debug('Next image')
-            previousImage = self.doNextImage(previousImage, cam, server_url, dbSession=dbSession, image_dir=image_dir)
+            previousImage = self.doNextImage(previousImage, self.cam, server_url, dbSession=dbSession, image_dir=image_dir)
+            cv2.accumulateWeighted(previousImage, self.averageImage, 0.1)
             logger.debug('Sleep until next image')
             time.sleep(cycleTime)
 
@@ -149,8 +148,10 @@ class HomesecImage:
         while True:
             self.newImageEvent.wait(0.1)
             if self.newImageEvent.isSet():
+                self.newImageEvent.clear()
                 logger.debug('Display new image')
                 cv2.imshow(imageWindowName, self.nextImage)
+                cv2.imshow(averageImageName, self.averageImage)
             cv2.waitKey(1)
 
     #===========================================================
@@ -158,6 +159,7 @@ class HomesecImage:
         logger.debug('Images - cleanup ****')
         self.cameraThread.cancel()
         self.displayThread.cancel()
+        self.cam.release()
         cv2.destroyAllWindows()
 
     #=======================================
