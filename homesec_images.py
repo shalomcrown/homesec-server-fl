@@ -11,17 +11,20 @@ from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 import atexit
 import datetime
-
 import db_schema
+from Tkinter import *
+import thread
 
 try:
     import numpy as np
     import cv2
     import cv
+    import matplotlib.pyplot as plt
+    from PIL import Image, ImageTk
 except:
     print """
         Couldn't import some packages. Try the following and then run again:
-        sudo apt-get install python-numpy python-opencv
+        sudo apt-get install python-numpy python-opencv  python-matplotlib python-mplexporter python-pil python-pil.imagetk
 
         On RaspberryPi you will also need to run the following:
         sudo modprobe bcm2835-v4l2
@@ -30,12 +33,16 @@ except:
 
 
 logger = logging.getLogger(__name__)
-
+scriptPath = os.path.dirname(os.path.realpath(__file__))
 
 
 class HomesecImage:
+    update_image_event = '<<update_images>>'
+
     def __init__(self):
         self.imageCount = 0
+        self.root = None
+        self.stop = False
 
 
     #===========================================================
@@ -94,6 +101,9 @@ class HomesecImage:
         taken_at = datetime.datetime.utcnow()
         self.nextImage = self.takePictureIntoImage(camera)
         self.newImageEvent.set()
+        if self.root:
+            logger.debug('Generate event %s', self.update_image_event)
+            self.win.event_generate(self.update_image_event, when="tail")
 
         if previousImage is not None:
             logger.info("Have previous file");
@@ -125,12 +135,12 @@ class HomesecImage:
        # warm camera up
         logger.debug('Camera warm up')
         for i in range(10, 0, -1):
+            if self.stop: break
             logger.info('Warming up: %d', i)
             time.sleep(cycleTime)
             self.takePictureIntoImage(self.cam)
 
-
-        while True:
+        while not self.stop:
             logger.debug('Next image')
             previousImage = self.doNextImage(previousImage, self.cam, server_url, dbSession=dbSession, image_dir=image_dir)
             imageForAverage = np.float32(previousImage) / 255.0
@@ -139,7 +149,7 @@ class HomesecImage:
             time.sleep(cycleTime)
 
     #===========================================================
-    def display_thread(self):
+    def display_thread_cv2(self):
         logger.debug('Display thread starting up')
         imageWindowName = 'Homesec image'
         averageImageName = 'Average image'
@@ -156,10 +166,78 @@ class HomesecImage:
             cv2.waitKey(1)
 
     #===========================================================
+    class Application(Frame):
+
+        def __init__(self, images=None):
+            Frame.__init__(self, images.root)
+            self.images = images
+            self.bind(HomesecImage.update_image_event, self.update_images)
+            self.pack()
+            self.createWidgets()
+
+        def quitter(self, *args):
+            logger.debug('Quitter called')
+            self.quit()
+
+        def createWidgets(self):
+            f0 = Frame(self)
+            f0.pack(side='top', expand=1, fill='x')
+
+            f1 = Frame(f0)
+            f1.pack(side='right', expand=1, fill='x')
+
+            l1 = Label(f1)
+            l1['text'] = 'Latest image'
+            l1.pack(side="top")
+            self.image_label = Label(f1)
+            self.image_label.pack(side='bottom')
+
+            f2 = Frame(f0)
+            f2.pack(side='left', expand=1, fill='x')
+            l2 = Label(f2)
+            l2['text'] = 'Average image'
+            l2.pack(side="top")
+            self.av_image = Label(f2)
+            self.av_image.pack(side='bottom')
+
+            quit = Button(self)
+            quit['text'] = 'Quit'
+            quit.pack(side='bottom')
+            quit.bind('<ButtonPress>', self.quitter)
+
+
+        def setImage(self, cvImage, widget):
+            #b,g,r = cv2.split(cvImage)
+            #img = cv2.merge((r,g,b))
+            #img = np.ubyte(img)
+            img = cv2.cvtColor(cvImage, cv2.COLOR_BGR2RGBA)
+            im = Image.fromarray(img)
+            imgtk = ImageTk.PhotoImage(image=im)
+            widget['image']=imgtk
+            self.update()
+
+        def update_images(self, *args):
+            logger.debug('Update images')
+            self.setImage(self.images.nextImage, self.image_label)
+
+
+    #===========================================================
+    def display_thread_tk(self):
+        self.root = Tk()
+        self.win = self.Application(self)
+        self.win.mainloop()
+        self.root.destroy()
+        self.root = None
+        self.images_cleanup()
+        thread.interrupt_main()
+        print
+        os._exit(0)
+
+    #===========================================================
     def images_cleanup(self):
-        logger.debug('Images - cleanup ****')
-        self.cameraThread.cancel()
-        self.displayThread.cancel()
+        logger.debug('Images - cleanup')
+        self.stop = True
+        self.cameraThread.join()
         self.cam.release()
         cv2.destroyAllWindows()
 
@@ -173,9 +251,11 @@ class HomesecImage:
         if not os.path.exists(image_dir):
             os.makedirs(image_dir)
 
+        self.cameraThread.daemon = True
         self.cameraThread.start()
 
-        self.displayThread = threading.Thread(target=self.display_thread)
+        self.displayThread = threading.Thread(target=self.display_thread_tk)
+        self.displayThread.daemon = True
         self.displayThread.start()
 
 #=======================================
