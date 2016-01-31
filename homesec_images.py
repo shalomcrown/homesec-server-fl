@@ -20,11 +20,16 @@ try:
     import cv2
     import cv
     import matplotlib.pyplot as plt
-    from PIL import Image, ImageTk
+    from PIL import Image
+    from PIL import ImageTk
+    from gi.repository import Gtk, GObject, GdkPixbuf
 except:
     print """
         Couldn't import some packages. Try the following and then run again:
         sudo apt-get install python-numpy python-opencv  python-matplotlib python-mplexporter python-pil python-pil.imagetk
+
+        And possibly:
+        sudo pip install --upgrade pillow
 
         On RaspberryPi you will also need to run the following:
         sudo modprobe bcm2835-v4l2
@@ -43,6 +48,7 @@ class HomesecImage:
         self.imageCount = 0
         self.root = None
         self.stop = False
+        self.win_gtk = None
 
 
     #===========================================================
@@ -55,7 +61,7 @@ class HomesecImage:
 
     def takePictureIntoImage(self, camera):
         retval, im = camera.read()
-        logger.debug('Image shape %s %s', im.shape, im.dtype)
+        #xlogger.debug('Image shape %s %s', im.shape, im.dtype)
         return im
 
 
@@ -103,7 +109,11 @@ class HomesecImage:
         self.newImageEvent.set()
         if self.root:
             logger.debug('Generate event %s', self.update_image_event)
-            self.win.event_generate(self.update_image_event, when="tail")
+            self.win_tk.event_generate(self.update_image_event, when="tail")
+        if self.win_gtk:
+            logger.debug('Generate GTK event update-images')
+            self.win_gtk.emit("update-images")
+
 
         if previousImage is not None:
             logger.info("Have previous file");
@@ -166,7 +176,7 @@ class HomesecImage:
             cv2.waitKey(1)
 
     #===========================================================
-    class Application(Frame):
+    class TkApplication(Frame):
 
         def __init__(self, images=None):
             Frame.__init__(self, images.root)
@@ -224,10 +234,61 @@ class HomesecImage:
     #===========================================================
     def display_thread_tk(self):
         self.root = Tk()
-        self.win = self.Application(self)
-        self.win.mainloop()
+        self.win_tk = self.TkApplication(self)
+        self.win_tk.mainloop()
         self.root.destroy()
         self.root = None
+        self.images_cleanup()
+        thread.interrupt_main()
+        print
+        os._exit(0)
+
+    #===========================================================
+
+
+
+    class GtkWindow(Gtk.Window):
+        __gsignals__ = {
+            "update-images": (GObject.SIGNAL_RUN_FIRST, None, ()),
+            }
+
+        def __init__(self, imagesObject):
+            Gtk.Window.__init__(self, title="Hello World")
+
+            self.imagesObject = imagesObject
+
+            grid = Gtk.Grid()
+            self.add(grid)
+            self.image_average = Gtk.Image()
+            grid.attach(self.image_average, 1, 1, 1, 2)
+
+            self.image_original = Gtk.Image()
+            grid.attach_next_to(self.image_original, self.image_average, Gtk.PositionType.RIGHT, 1, 2)
+
+            self.button = Gtk.Button(label="Quit")
+            self.button.connect("clicked", self.on_button_clicked)
+            grid.attach(self.button, 1, 3, 1, 1)
+
+            self.connect("update-images", self.update_images)
+            ##self.emit("selection-finished")
+
+        def on_button_clicked(self, widget):
+            logger.debug('Quitter called')
+            Gtk.main_quit()
+
+        def update_images(self, widget):
+            logger.debug('Image updater called')
+            img = cv2.cvtColor(self.imagesObject.nextImage, cv2.COLOR_BGR2RGBA)
+            width, height = img.size
+            pixbuf = GdkPixbuf.Pixbuf.new_from_data(img, GdkPixbuf.Colorspace.RGB,
+                                          True, 8, width, height, width * 4)
+
+
+    def display_thread_gtk(self):
+        self.win_gtk = self.GtkWindow(self)
+        self.win_gtk.connect("delete-event", Gtk.main_quit)
+        self.win_gtk.show_all()
+        Gtk.main()
         self.images_cleanup()
         thread.interrupt_main()
         print
@@ -254,7 +315,7 @@ class HomesecImage:
         self.cameraThread.daemon = True
         self.cameraThread.start()
 
-        self.displayThread = threading.Thread(target=self.display_thread_tk)
+        self.displayThread = threading.Thread(target=self.display_thread_gtk)
         self.displayThread.daemon = True
         self.displayThread.start()
 
