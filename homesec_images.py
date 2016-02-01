@@ -259,10 +259,10 @@ class HomesecImage:
 
             grid = Gtk.Grid()
             self.add(grid)
-            self.image_average = Gtk.Image()
+            self.image_average = Gtk.Button()
             grid.attach(self.image_average, 1, 1, 1, 2)
 
-            self.image_original = Gtk.Image()
+            self.image_original = Gtk.Button()
             grid.attach_next_to(self.image_original, self.image_average, Gtk.PositionType.RIGHT, 1, 2)
 
             self.button = Gtk.Button(label="Quit")
@@ -279,9 +279,14 @@ class HomesecImage:
         def update_images(self, widget):
             logger.debug('Image updater called')
             img = cv2.cvtColor(self.imagesObject.nextImage, cv2.COLOR_BGR2RGBA)
-            width, height = img.size
-            pixbuf = GdkPixbuf.Pixbuf.new_from_data(img, GdkPixbuf.Colorspace.RGB,
+            im = Image.fromarray(img)
+            width, height = im.width, im.height
+            width, height = img.shape[0], img.shape[1]
+            pixbuf = GdkPixbuf.Pixbuf.new_from_data(img.data, GdkPixbuf.Colorspace.RGB,
                                           True, 8, width, height, width * 4)
+            image = Gtk.Image.new_from_pixbuf(pixbuf)
+            self.image_original.set_image(image)
+
 
 
     def display_thread_gtk(self):
