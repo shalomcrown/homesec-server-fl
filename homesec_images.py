@@ -254,15 +254,16 @@ class HomesecImage:
 
         def __init__(self, imagesObject):
             Gtk.Window.__init__(self, title="Hello World")
+            self.set_default_size(700, 500);
 
             self.imagesObject = imagesObject
 
             grid = Gtk.Grid()
             self.add(grid)
-            self.image_average = Gtk.Button()
+            self.image_average = Gtk.Image.new_from_stock(Gtk.STOCK_CDROM, 32)
             grid.attach(self.image_average, 1, 1, 1, 2)
 
-            self.image_original = Gtk.Button()
+            self.image_original = Gtk.Image.new_from_stock(Gtk.STOCK_NEW, 32)
             grid.attach_next_to(self.image_original, self.image_average, Gtk.PositionType.RIGHT, 1, 2)
 
             self.button = Gtk.Button(label="Quit")
@@ -270,7 +271,6 @@ class HomesecImage:
             grid.attach(self.button, 1, 3, 1, 1)
 
             self.connect("update-images", self.update_images)
-            ##self.emit("selection-finished")
 
         def on_button_clicked(self, widget):
             logger.debug('Quitter called')
@@ -279,13 +279,13 @@ class HomesecImage:
         def update_images(self, widget):
             logger.debug('Image updater called')
             img = cv2.cvtColor(self.imagesObject.nextImage, cv2.COLOR_BGR2RGBA)
-            im = Image.fromarray(img)
-            width, height = im.width, im.height
+            logger.debug('Image shape:  %s %s ' % (str(img.dtype), ",".join([str(i) for i in img.shape])));
             width, height = img.shape[0], img.shape[1]
             pixbuf = GdkPixbuf.Pixbuf.new_from_data(img.data, GdkPixbuf.Colorspace.RGB,
                                           True, 8, width, height, width * 4)
-            image = Gtk.Image.new_from_pixbuf(pixbuf)
-            self.image_original.set_image(image)
+            self.image_original.set_from_pixbuf(pixbuf)
+            self.keep_image = img
+
 
 
 
